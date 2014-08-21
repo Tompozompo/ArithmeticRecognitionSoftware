@@ -1,2 +1,11 @@
 g++ `pkg-config --cflags opencv` -g ArithmeticRecognitionSoftware.cpp finalex.c `pkg-config --libs opencv` 
 
+
+---Compile individual files---
+gcc `pkg-config --cflags opencv` -c finalex.c `pkg-config --libs opencv`
+gcc `pkg-config --cflags opencv` -c ArithmeticRecognitionSoftware.c `pkg-config --libs opencv`
+g++ `pkg-config --cflags opencv` -c train_cvknearest.cpp `pkg-config --libs opencv`
+g++ `pkg-config --cflags opencv` -c find_closest.cpp `pkg-config --libs opencv`
+
+---Link them together---
+gcc `pkg-config --cflags opencv` finalex.o ArithmeticRecognitionSoftware.o find_closest.o train_cvknearest.o `pkg-config --libs opencv` -lm -lstdc++
