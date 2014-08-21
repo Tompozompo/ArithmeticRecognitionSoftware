@@ -31,4 +31,16 @@ CvMat** createMatrices(IplImage** samples, int num_samples, int
 
 IplImage* scale_image(IplImage* image, int image_size);
 
+char* in2post(char* equation);					//Converts an infix expression to postfix
+
+int postEval(char* postfix);						//Evaluates a postfix expression and return the result
+
+void push(char* value, char** stack);			//Push string to a stack
+
+char* pop(char** stack);							//Pop and return the top element of a stack
+
+char* top(char** stack);							//Returns the top element of a stack
+
+extern int topIndex;									//Global variable used to index a stack
+
 #endif

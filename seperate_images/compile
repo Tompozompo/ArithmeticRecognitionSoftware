@@ -1,1 +1,0 @@
-gcc `pkg-config --cflags opencv` -g ImageCrop.c `pkg-config --libs opencv`

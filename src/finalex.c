@@ -27,9 +27,10 @@ int main(int argc, char ** argv) {
 										 // classes in 2 seperate matrices
 										 // [0] is data and [1] is classes
 	char sample_images[256],	// path to the root of the sample images dir
-	     *expression,	//the picture converted into an expression
-		  *f,	//loops through the expression string
-		  e;	//stores the value of each image temporarily 
+	     *expression,	// the picture converted into an expression
+		  *postfix,  // the expression ion postfix form
+		  *f,	// loops through the expression string
+		  e;	// stores the value of each image temporarily 
 	
 	strcpy(sample_images, "samples/");	
 	
@@ -110,8 +111,14 @@ int main(int argc, char ** argv) {
 		}
 	}
 	*f = '\0';
+
 	printf("Expression identified as: %s \n", expression);
 
+	postfix = in2post(expression);
+	printf("This is the post fix: %s\n", postfix);
+
+	result = postEval(postfix);
+	printf("This is the answer to the equation: %d\n", result);	
 
 	return EXIT_SUCCESS;
 }
