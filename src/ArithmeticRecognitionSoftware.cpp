@@ -9,6 +9,36 @@
 #include <math.h>
 #include <dirent.h>
 
+void usage()
+{
+	printf("Usage: ./ARS IMAGE\n");
+	printf("Missing image filename.\n");
+}
+
+char int_to_ops(int i)
+{
+	char rv;
+	switch(i)
+	{
+		case 10:
+			rv = '+';
+			break;
+		case 11: 
+			rv = '-';
+			break;
+		case 12: 
+			rv = 'x';
+			break;
+		case 13: 
+			rv = '%';
+			break;
+		default:
+			rv = (char)(((int)'0')+i);
+			break;
+	}
+	return rv;
+}
+
 /**
  * Loads an image (stored as an IplImage struct) for each
  * filename provided.
@@ -23,15 +53,20 @@ SampleImage* loadSamples(int numSamples, int numClasses, char* dirpath, int
 		 j, // used for looping
 		 k; // used for indexing 
 	DIR *dir;  //used to find all files
-	struct dirent *ent;  
-	
+	struct dirent *ent; // a directory entry 
+	char extention[4], // stores the name of the subfolder(1/, 2/, ...)
+	 	  *dirname, // stores the dirpath + extension
+		  fullpath[256], // stores the full path to each file (dirname + file)
+		  character; //the current character in the folders
+
 	rv =(SampleImage*)malloc(numClasses*numSamples*sizeof(SampleImage));
 	k = 0;
    for(i = 0; i < numClasses; i++)	
 	{
-		char* dirname = (char*)malloc((strlen(dirpath)+4)*sizeof(char));
-		char extention[4];
-		sprintf(extention, "%d/", i);
+		dirname = (char*)malloc((strlen(dirpath)+4)*sizeof(char));
+		character = int_to_ops(i);
+		printf("%d = %c\n", i, character);
+		sprintf(extention, "%c/", character);
 		strcpy(dirname, dirpath);
 		strcat(dirname, extention);
 		if ((dir = opendir (dirname)) == NULL) 
@@ -41,14 +76,12 @@ SampleImage* loadSamples(int numSamples, int numClasses, char* dirpath, int
 		}
 	   for(j = 0; j < numSamples+2; j++)	 //need to add 2 because . and ..
 		{
-			char fullpath[256]; //stores the full path
 			ent = readdir(dir);
 			if(strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
 				continue;
 			strcpy(fullpath, dirname);
 			strcat(fullpath, ent->d_name);
-			rv[k].image = preprocessing(cvLoadImage(fullpath, 0), image_size,
-					image_size);
+			rv[k].image = preprocessing(cvLoadImage(fullpath, 0), image_size);
 			rv[k].classifier = i;
 			if(rv[k].image == 0) 
 			{
@@ -63,6 +96,79 @@ SampleImage* loadSamples(int numSamples, int numClasses, char* dirpath, int
 	return rv;
 }
 
+IplImage* convert_to_bw(IplImage* image)
+{
+	IplImage* bw_image = cvCreateImage(cvGetSize(image), IPL_DEPTH_8U, 1);
+	cvThreshold(image, bw_image, 128, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+	return bw_image;
+}
+
+
+IplImage** OpCropper(IplImage* imgSrc, int* ImgNum)
+{
+	int i,			 //Iterate through column
+		 min,			 //Stores starting column number of a operator/operand
+		 max,			 //Stores ending column number of a operator/operand
+		 minFound,	 //Acts as a bool to see if the first minimum value is set
+	    count;		 //Index through the array of IplImage
+
+	CvRect cropRect;			//The rectangle surrounding an operator/operand
+	IplImage	**rv;				//Array to store a maximum of 128 IplImages
+
+	CvMat data;  			//Stores the current column
+	CvScalar maxVal,		//Stores the value of a column that is entirely white
+				val;			//Stores the value of the current column
+
+	//For each col sum, if sum < width*255 then we find the min 
+	//then continue to end to search the max, if sum< width*255 then is new
+	//max
+
+	//initialize some variables
+	count = 0;
+	minFound = 0;
+	min = 0;
+	max = 0;
+	rv = (IplImage**)malloc(128*sizeof(IplImage*));
+	maxVal = cvRealScalar(imgSrc->height* 255);
+	val = cvRealScalar(0);
+	
+	//Iterate through each column
+	for (i=0; i< imgSrc->width; i++){
+		cvGetCol(imgSrc, &data, i);
+		val= cvSum(&data);
+
+		//Set the min to the initial column containing black
+		//This is where the Operator/Operand begins
+		if(val.val[0] < maxVal.val[0] && !minFound){
+			min = i;
+			minFound = 1;
+		}
+		//Keeps setting the max value to the column with a black pixel
+		else if(val.val[0] < maxVal.val[0] && minFound){
+			max= i;			
+		}
+		//Once a white column is found, we have found the end of this
+		//operator/operand
+		else if(val.val[0] == maxVal.val[0] && minFound) 
+		{
+			//Set a rectangle to have the dimension of the cropping area
+			cropRect = cvRect(min, 0, max-min, imgSrc->height);
+			//Crop the image and put it in the array
+			cvSetImageROI(imgSrc, cropRect);
+			rv[count] = cvCreateImage(cvSize(cropRect.width, cropRect.height), imgSrc->depth,imgSrc->nChannels);
+			cvCopy(imgSrc, rv[count], NULL);
+			cvResetImageROI(imgSrc);
+
+			//Increment the index and amount of images
+			count++;	
+			(*ImgNum)++;	
+			//Minimum is reset to find a new operand/opeartor
+			minFound = 0;
+		}
+	}
+	return rv;
+}
+
 CvMat** createMatrices(SampleImage* samples, int num_samples, int
 		num_classes, int image_size)
 {
@@ -70,9 +176,8 @@ CvMat** createMatrices(SampleImage* samples, int num_samples, int
 	CvMat *train_data, //matrix of the train data
    	   *train_classes, //matrix of the training classes 
 		   row, // the row to place the image
-			data, // the holds a 32 bit version of the total image
       	row_header,	// header of compressed matrix	
-      	*row1; // stores the compressed matrix
+      	*reshaped_image; // stores the compressed matrix
 	int i, //used for looping
 		 j, //used for looping
 		 k; //used for indexing
@@ -90,19 +195,19 @@ CvMat** createMatrices(SampleImage* samples, int num_samples, int
 			//Set the value of this class
       	cvGetRow(train_classes, &row, k);
       	cvSet(&row, cvRealScalar(i));
-      	//Set data 
+
+      	//Set the data of this class
       	cvGetRow(train_data, &row, k);
       
-      	IplImage* img = cvCreateImage(cvSize( image_size, image_size ), IPL_DEPTH_32F, 1 );
+      	IplImage* img = cvCreateImage(cvSize(image_size, image_size), IPL_DEPTH_32F, 1 );
       	//convert 8 bits image to 32 float image
       	cvConvertScale(samples[k].image, img, 0.0039215, 0);
-     		//store the new image in data 
-      	cvGetSubRect(img, &data, cvRect(0, 0, image_size, image_size));
-      	
+
       	//coverts a size x size martix to a 1 x (size*size)
-      	row1 = cvReshape(&data, &row_header, 0, 1);
-			//copy the compressed matrix into its correct row
-      	cvCopy(row1, &row, NULL);
+      	reshaped_image = cvReshape(img, &row_header, 0, 1);
+			
+			//copy the compressed matrix into its row
+      	cvCopy(reshaped_image, &row, NULL);
 			k++;
 		}
 	}
@@ -119,7 +224,6 @@ int find_closest(IplImage* resized_input, int image_size)
 {
 	int K = 10;
    CvMat *nearest, //used by find_nearest
-			data, // the holds a 32 bit version of the total image
       	row_header,	// header of compressed matrix	
       	*row1; // stores the compressed matrix
    
@@ -127,15 +231,16 @@ int find_closest(IplImage* resized_input, int image_size)
    
    nearest = cvCreateMat(1, K, CV_32FC1);
 
-   //Set data 
+   //Set up the image so it can be looked for
    IplImage* img32 = cvCreateImage( cvSize( image_size, image_size), 
 				IPL_DEPTH_32F, 1);
+
    //convert 8 bits image to 32 float image
    cvConvertScale(resized_input, img32, 0.0039215, 0);
-	//store the new image in data
-	cvGetSubRect(img32, &data, cvRect(0,0, image_size, image_size));
+
    //coverts a size x size martix to a 1 x (size*size)
-   row1 = cvReshape( &data, &row_header, 0, 1 );
+   row1 = cvReshape(img32, &row_header, 0, 1 );
+
   	//find that result! 
    result = knn->find_nearest(row1, K, 0, 0, nearest, 0);
    
@@ -163,7 +268,8 @@ void findX(IplImage* imgSrc,int* min, int* max){
 	}
 }
 
-void findY(IplImage* imgSrc,int* min, int* max){
+void findY(IplImage* imgSrc,int* min, int* max)
+{
 	int i;
 	int minFound=0;
 	CvMat data;
@@ -183,58 +289,64 @@ void findY(IplImage* imgSrc,int* min, int* max){
 		}
 	}
 }
-CvRect findBB(IplImage* imgSrc){
-	CvRect aux;
-	int xmin, xmax, ymin, ymax;
-	xmin=xmax=ymin=ymax=0;
 
+CvRect findBB(IplImage* imgSrc)
+{
+	CvRect rv;
+	int xmin, 
+		 xmax, 
+		 ymin,
+		 ymax;
+
+	xmin = 0;
+	xmax = imgSrc->height;
+	ymin = 0;
+	ymax = imgSrc->width;
 	findX(imgSrc, &xmin, &xmax);
 	findY(imgSrc, &ymin, &ymax);
 	
-	aux=cvRect(xmin, ymin, xmax-xmin, ymax-ymin);
+	rv  = cvRect(xmin, ymin, xmax-xmin, ymax-ymin);
 	
-	return aux;
-	
+	return rv;
 }
 
-IplImage* preprocessing(IplImage* imgSrc,int new_width, int new_height){
-	IplImage* result;
-	IplImage* scaledResult;
+IplImage* preprocessing(IplImage* imgSrc, int image_size)
+{
+	IplImage *result,  //imgSrc with a 1 as the aspect ratio
+			   *scaledResult;	//the result scaled to image_size
 
-	CvMat data;
-	CvMat dataA;
-	CvRect bb;//bounding box
-	CvRect bba;//boundinb box maintain aspect ratio
+	CvRect bb;	//bounding box
 	
-	//convert the image to black and white
-	/*
-	IplImage* bw_image = cvCreateImage(cvGetSize(imgSrc), IPL_DEPTH_8U, 1);
-	cvThreshold(imgSrc, bw_image, 128, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
-
-	cvSaveImage(bw_image);
-	*/
-
 	//Find bounding box
-	bb=findBB(imgSrc);
+	bb = findBB(imgSrc);
 	
-	//Get bounding box data and no with aspect ratio, the x and y can be corrupted
-	cvGetSubRect(imgSrc, &data, cvRect(bb.x, bb.y, bb.width, bb.height));
-	//Create image with this data with width and height with aspect ratio 1 
-	//then we get highest size betwen width and height of our bounding box
+	//Set the ROI to the bounding box
+	cvSetImageROI(imgSrc, cvRect(bb.x, bb.y, bb.width, bb.height));
+
+	//Create a new image with the height and width both as the greater of the
+	//two of the bounding box	
 	int size = (bb.width>bb.height)?bb.width:bb.height;
-	result=cvCreateImage( cvSize( size, size ), 8, 1 );
-	cvSet(result,CV_RGB(255,255,255),NULL);
-	//Copy de data in center of image
+	result = cvCreateImage(cvSize( size, size ), 8, 1 );
+	cvSet(result, CV_RGB(255, 255, 255), NULL); 
+	
+	//This will give you the x and y position so the new image will be
+	//centered
 	int x = (int)floor((float)(size-bb.width)/2.0f);
 	int y = (int)floor((float)(size-bb.height)/2.0f);
 	
-	cvGetSubRect(result, &dataA, cvRect(x,y,bb.width, bb.height));
-	cvCopy(&data, &dataA, NULL);
-	//Scale result
-	scaledResult=cvCreateImage( cvSize( new_width, new_height ), 8, 1 );
-	cvResize(result, scaledResult, CV_INTER_NN);
+	cvSetImageROI(result, cvRect(x, y, bb.width, bb.height));
+	cvCopy(imgSrc, result, NULL);
 	
-	//Return processed data
+//	cvResetImageROI(result);
+
+	//Scale result
+	scaledResult = cvCreateImage(cvSize(image_size, image_size), 8, 1 );
+	cvResize(result, scaledResult, CV_INTER_NN);
+
+	cvResetImageROI(imgSrc);
+	cvResetImageROI(result);
+
+	//Return scaled image data
 	return scaledResult;
 }
 

@@ -22,6 +22,14 @@ typedef struct SampleImage
 	int classifier;
 } SampleImage;
 
+void usage();
+
+char int_to_ops(int i);
+
+IplImage* convert_to_bw(IplImage* image);
+
+IplImage** OpCropper(IplImage* imgSrc, int* ImgNum);
+
 SampleImage* loadSamples(int num_samples, int num_classes, char* dirpath,
 		int image_size);
 
@@ -32,6 +40,6 @@ void train_cvknearest(CvMat* data, CvMat* responses);
 
 int find_closest(IplImage* resized_input, int image_size);
 
-IplImage* preprocessing(IplImage* imgSrc,int new_width, int new_height);
+IplImage* preprocessing(IplImage* image, int image_size);
 
 #endif

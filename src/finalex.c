@@ -5,69 +5,45 @@
  *      Author: Thomas Amon and Zhi Wei Zheng 
  */
 
-// Images from http://press.liacs.nl/mirflickr/#sec_download
+//Sample images from TODO link here
 #include "ArithmeticRecognitionSoftware.h"
 
-#define CLASS_COUNT 10
-#define SAMPLE_COUNT 100 
-#define SIZE 128 
+#define CLASS_COUNT 14
+#define SAMPLE_COUNT 100
+#define SIZE 128
 
 int main(int argc, char ** argv) {
-	int numberOfImages, // the number of images to load for training 
-			numColumns, // the number of horizontal images in the result
-			numRows, // the number of vertical images in the result
-			i, // just an iterator
-		   result,
-			size;
+		 int i, // just an iterator
+		     result,	//store the integer result
+		     number_of_images; // the number of subimages the input image was
+			  						  // split into
+
 	IplImage *input, // the source image
-			*res, // the resulting mosaic image
-			*smallRes, // the resulting mosaic image that is only 2x the size of the original
-			*resized_input;
-	IplImage **timages, // the small images loaded from the disk
-			**subImages, // small images created from the source image
-			**closest; // the pictures in timates closest to the subImages
+				*bw_input, 	// the input image made black and white
+				**Ops,	// array that holds the Operator/Operand images
+				*resized_input; // stores subimages resized to SIZExSIZE 
+
 	CvMat** training_matrices;  // array containing the sample data and
 										 // classes in 2 seperate matrices
 										 // [0] is data and [1] is classes
-	SampleImage* samples; //array of sample images
 
+	SampleImage* samples; // array of sample images
+	char sample_images[256];	// path to the root of the sample images dir
+	
+	strcpy(sample_images, "../samples/");	
+	
 	result = 0;	
-	char filepath[256];
-	strcpy(filepath, "../OCR/");
+	number_of_images = 0;
 
 	if(argc < 2)
 	{
-		printf("Error: Need atleast 2 commands.\n");
-		//TODO Usage print
+		usage();
 		exit(0);
 	}
 	
-	// Load the source image
-	printf("Loading input image\n");
-	input = cvLoadImage(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
-   cvSaveImage("echo.png", input);
-
-	if(input == NULL)
-	{
-		fprintf(stderr, "Could not load %s!\n", argv[1]);
-		return EXIT_FAILURE;
-	}
-
-   IplImage* bw_input = cvCreateImage(cvGetSize(input), IPL_DEPTH_8U, 1);
-   cvThreshold(input, bw_input, 128, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
-
-   cvSaveImage("bwimage.png", bw_input, 0);
-	
-	// Scale the input image
-	printf("Scaling input image to size %d x %d\n", SIZE, SIZE);
-
-	resized_input = preprocessing(bw_input, SIZE, SIZE);
-
-   cvSaveImage("resizedimage.png", resized_input);
-	
 	// Load the sample images
 	printf("Loading sample images\n");
-	if ((samples = loadSamples(SAMPLE_COUNT, CLASS_COUNT, filepath, SIZE)) == NULL ) 
+	if ((samples = loadSamples(SAMPLE_COUNT, CLASS_COUNT, sample_images, SIZE)) == NULL ) 
 	{
 		fprintf(stderr, "Could not load images!\n");
 		return EXIT_FAILURE;
@@ -82,11 +58,42 @@ int main(int argc, char ** argv) {
 	printf("Training with sample data\n");	
 	train_cvknearest(training_matrices[0], training_matrices[1]);
 	
-	//finding closest match in sample data	
-	printf("Finding closest match\n");	
-	result = find_closest(resized_input, SIZE);
+	// Load the source image
+	printf("Loading input image\n");
+	input = cvLoadImage(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
+	if(input == NULL)
+	{
+		fprintf(stderr, "Could not load %s!\n", argv[1]);
+		return EXIT_FAILURE;
+	}
+   cvSaveImage("echo.png", input);
 
-	printf("Number entered: %d\n", result);
+	
+	// convert input to black and white  
+	printf("Converting the image to black and white");
+	bw_input = convert_to_bw(input);
+   cvSaveImage("bwimage.png", bw_input, 0);
+
+	Ops = OpCropper(bw_input, &number_of_images);
+
+	char filename[32];	
+	for(i = 0; i < number_of_images; i++)
+	{
+		sprintf(filename, "seperated_image_%d.png", i);
+		cvSaveImage(filename, Ops[i]);
+	
+		//scale the input image to SIZExSIZE
+		printf("Scaling input image to size %d x %d\n", SIZE, SIZE);
+		resized_input = preprocessing(Ops[i], SIZE);
+   	cvSaveImage(filename, resized_input);
+   	
+		//finding closest match in sample data	
+   	printf("Finding closest match\n");	
+   	result = find_closest(resized_input, SIZE);
+   
+   	printf("Number entered: %c\n", int_to_ops(result));
+	}
+
 
 	return EXIT_SUCCESS;
 }
