@@ -1,0 +1,2 @@
+g++ `pkg-config --cflags opencv` -g ArithmeticRecognitionSoftware.cpp finalex.c `pkg-config --libs opencv` 
+
