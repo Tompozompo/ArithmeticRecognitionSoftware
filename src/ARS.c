@@ -325,7 +325,10 @@ char* in2post(char* equation){
 	int i = 0;																	//Iterator
 	int arraySize = 0;														//Keep track of the size of the array of strings
 	char* postfix = (char*)malloc(128*sizeof(char));				//Initialize a variable to hold the postfix expression with suitable size
-
+	strcpy(postfix, "");
+	if(strlen(equation) == 1) {
+		return equation;
+	}
 	//Creates an array containing the delimited
 	while(p != NULL) {
 		equationArray[i++] = p;
@@ -338,7 +341,8 @@ char* in2post(char* equation){
 	//Iterate through each operand and operator for infix to postfix conversion
 	for( i = 0; i < arraySize; i++){
 		//Determine if the element is an operator
-		if(strcmp(equationArray[i], "+") == 0 || strcmp(equationArray[i],"-") == 0 || strcmp(equationArray[i], "*") == 0 || strcmp(equationArray[i], "/") == 0
+		if(strcmp(equationArray[i], "+") == 0 || strcmp(equationArray[i],"-")
+				== 0 || strcmp(equationArray[i], "x") == 0 || strcmp(equationArray[i], "/") == 0
 			  	|| strcmp(equationArray[i], "(") == 0 || strcmp(equationArray[i], ")") == 0) {
 			//Push to stack if there are no elements in the stack
 			if(topIndex == -1) {
@@ -353,13 +357,16 @@ char* in2post(char* equation){
 				while(strcmp(top(stack), "(") != 0) {
 					strcat(postfix, pop(stack));
 					strcat(postfix, " ");
+					printf("%s\n", postfix);
 				}
 				pop(stack);
 			}
 			else if(strcmp(equationArray[i], "+") == 0 || strcmp(equationArray[i], "-") == 0){
-				while(strcmp(top(stack), "+") == 0 || strcmp(top(stack), "-") ==0 || strcmp(top(stack), "*") == 0 || strcmp(top(stack),"/") == 0 ) {
+				while(strcmp(top(stack), "+") == 0 || strcmp(top(stack), "-")
+						==0 || strcmp(top(stack), "x") == 0 || strcmp(top(stack),"/") == 0 ) {
 					strcat(postfix, pop(stack));
 					strcat(postfix, " ");
+					printf("%s\n", postfix);
 				}
 				//Pushes most recent operator to stack
 				push(equationArray[i], stack);
@@ -367,10 +374,11 @@ char* in2post(char* equation){
 			//If it's a multiplication or division symbol, it keeps
 			//concatenating the top stack elements as longa s it has the same
 			//precendence.
-			else if(strcmp(equationArray[i], "*") == 0 || strcmp(equationArray[i], "/") == 0) {
-				while(strcmp(top(stack), "*") == 0 || strcmp(top(stack), "/") == 0 ) { 
+			else if(strcmp(equationArray[i], "x") == 0 || strcmp(equationArray[i], "/") == 0) {
+				while(strcmp(top(stack), "x") == 0 || strcmp(top(stack), "/") == 0 ) { 
 					strcat(postfix, pop(stack));
 					strcat(postfix, " ");
+					printf("%s\n", postfix);
 				}
 				//Pushes most recent operator to stack
 				push(equationArray[i], stack);
@@ -380,6 +388,7 @@ char* in2post(char* equation){
 		else {
 			strcat(postfix, equationArray[i]);
 			strcat(postfix, " ");
+			printf("%s\n", postfix);
 		}
 	}
 	//Concatenates all the remaining elements in the stack to the final
@@ -387,6 +396,7 @@ char* in2post(char* equation){
 	while(topIndex != -1) {
 		strcat(postfix, pop(stack));
 		strcat(postfix, " ");
+		printf("%s\n", postfix);
 	}
 
 	//Free memory used to hold copy
@@ -403,7 +413,9 @@ int postEval(char* postfix) {
 	int i = 0;																	//Iterator
 	int arraySize = 0;														//Variable to keep track of the size of the array of strings
 
-
+	if(strlen(postfix) == 1) {
+		return atoi(postfix);
+	}
 	//Delimits the string by the spaces and set the array equal to each
 	//element
 	while(p != NULL) {
@@ -418,7 +430,8 @@ int postEval(char* postfix) {
 	//Iterate through each operator and operand in the postfix array
 	for(i = 0; i < arraySize; i++) {
 		//Determine if the element is an operator
-		if(strcmp(equationArray[i], "+") == 0 || strcmp(equationArray[i], "-") == 0 || strcmp(equationArray[i], "*") == 0 || strcmp(equationArray[i], "/") == 0) {
+		if(strcmp(equationArray[i], "+") == 0 || strcmp(equationArray[i], "-")
+				== 0 || strcmp(equationArray[i], "x") == 0 || strcmp(equationArray[i], "/") == 0) {
 			int first = atoi(pop(stack));		//Convert the top element of the stack to an integer
 			int second = atoi(pop(stack));	//Convert the secodn top element of the stack to an integer
 			int result;								//Initialize an int to hold the result of the two top elements
@@ -431,7 +444,7 @@ int postEval(char* postfix) {
 				result = second - first;
 			}
 			//Multiply the two numbers
-			else if(strcmp(equationArray[i], "*") == 0) {
+			else if(strcmp(equationArray[i], "x") == 0) {
 				result = second*first;
 			}
 			//divide the two numbers
