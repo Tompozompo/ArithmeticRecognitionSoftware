@@ -354,7 +354,7 @@ char* in2post(char* equation){
 				push(equationArray[i], stack);
 			}	
 			else if(strcmp(equationArray[i], ")") == 0) {
-				while(strcmp(top(stack), "(") != 0) {
+				while(strcmp(top(stack), "(") != 0 && topIndex != -1) {
 					strcat(postfix, pop(stack));
 					strcat(postfix, " ");
 					printf("%s\n", postfix);
