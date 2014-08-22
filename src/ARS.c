@@ -363,9 +363,14 @@ char* in2post(char* equation){
 				push(equationArray[i], stack);
 			}	
 			else if(strcmp(equationArray[i], ")") == 0) {
-				while(strcmp(top(stack), "(") != 0) {
+				while(strcmp(top(stack), "(") != 0 && topIndex != -1) {
 					strcat(postfix, pop(stack));
 					strcat(postfix, " ");
+				}
+				if(topIndex == -1)
+				{
+					fprintf(stderr, "Error: Invalid expression\n");
+					return NULL;
 				}
 				pop(stack);
 			}
@@ -420,6 +425,8 @@ int postEval(char* postfix) {
 	if(strlen(postfix) == 1) {
 		return atoi(postfix);
 	}
+	if(postfix == NULL)
+		return 0;
 	//Delimits the string by the spaces and set the array equal to each
 	//element
 	while(p != NULL) {

@@ -5,11 +5,10 @@
  *      Author: Thomas Amon and Zhi Wei Zheng 
  */
 
-//Sample images from TODO link here
 #include "ARS.h"
 #include "knearest.h"
 
-#define CLASS_COUNT 14
+#define CLASS_COUNT 16
 #define SAMPLE_COUNT 100
 #define SIZE 128
 
@@ -72,28 +71,38 @@ int main(int argc, char ** argv) {
 		fprintf(stderr, "Could not load %s!\n", argv[1]);
 		return EXIT_FAILURE;
 	}
-   //cvSaveImage("echo.png", input, NULL);
+   cvSaveImage("saves/echo.png", input, NULL);
 
 	
 	// convert input to black and white  
-	printf("Converting input image to black and white.\n");
+	printf("Converting input image to black and white\n");
 	bw_input = convert_to_bw(input);
-   //cvSaveImage("bwimage.png", bw_input, NULL);
-
+   cvSaveImage("saves/bwimage.png", bw_input, NULL);
+	
+	//Seperate the image into its operators and operands
+	printf("Seperating the image into its operators and operands\n");
 	Ops = OpCropper(bw_input, &number_of_images);
 
 	expression = (char*)malloc(3*number_of_images*sizeof(char));
 	f = expression;
 
+	char filename[32];	
    printf("Finding closest matches\n");	
 	for(i = 0; i < number_of_images; i++)
 	{
+
+		sprintf(filename, "saves/seperated_image_%d.png", i);
+		cvSaveImage(filename, Ops[i], NULL);
 		//scale the input image to SIZExSIZE
 		resized_input = scale_image(Ops[i], SIZE);
    	
 		//finding closest match in sample data	
+		sprintf(filename, "saves/resized_image_%d.png", i);
    	result = find_closest(resized_input, SIZE);
+		cvSaveImage(filename, resized_input, NULL);
 
+	
+		//store the interpreted character in expression
 		e = int_to_ops(result);
 		if(isdigit(e))
 		{
@@ -111,14 +120,18 @@ int main(int argc, char ** argv) {
 		}
 	}
 	*f = '\0';
-
+	
 	printf("Expression identified as: %s \n", expression);
 
+	//make the expressin posfix	
 	postfix = in2post(expression);
-	printf("This is the post fix: %s\n", postfix);
-
+	if(postfix == NULL)
+		return EXIT_FAILURE;
+	printf("Post fix expression: %s\n", postfix);
+	
+	//evaluate the posfix expression
 	result = postEval(postfix);
-	printf("This is the answer to the equation: %d\n", result);	
+	printf("Answer: %d\n", result);	
 
 	return EXIT_SUCCESS;
 }
