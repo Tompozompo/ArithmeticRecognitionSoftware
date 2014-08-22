@@ -24,3 +24,6 @@ lib/train_cvknearest.o: src/train_cvknearest.cpp
 
 clean:
 	rm -rf $(TARGETS) lib/*.o
+
+create_samples: src/create_samples.c
+	$(CC) $(FLAGS) -o create_sample $< $(LIBS)
