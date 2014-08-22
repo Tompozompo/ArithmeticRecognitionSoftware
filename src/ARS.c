@@ -32,6 +32,12 @@ char int_to_ops(int i)
 		case 13: 
 			rv = '%';
 			break;
+		case 14: 
+			rv = ')';
+			break;
+		case 15: 
+			rv = '(';
+			break;
 		default:
 			rv = (char)(((int)'0')+i);
 			break;
@@ -144,13 +150,16 @@ IplImage** OpCropper(IplImage* imgSrc, int* ImgNum)
 		}
 		//Keeps setting the max value to the column with a black pixel
 		else if(val.val[0] < maxVal.val[0] && minFound){
-			max= i;			
+			max = i;			
 		}
 		//Once a white column is found, we have found the end of this
 		//operator/operand
 		else if(val.val[0] == maxVal.val[0] && minFound) 
 		{
 			//Set a rectangle to have the dimension of the cropping area
+			if(max-min < 20)  //skip unreasonably small marks
+				continue;
+
 			cropRect = cvRect(min, 0, max-min, imgSrc->height);
 			//Crop the image and put it in the array
 			cvSetImageROI(imgSrc, cropRect);
@@ -239,10 +248,11 @@ void findY(IplImage* imgSrc,int* min, int* max)
 	int i;
 	int minFound=0;
 	CvMat data;
-	CvScalar maxVal=cvRealScalar(imgSrc->width * 255);
+	CvScalar maxVal=cvRealScalar(imgSrc->width * 250);	//250 to ignore small
+																		//blemishes
 	CvScalar val=cvRealScalar(0);
 	//For each col sum, if sum < width*255 then we find the min 
-	//then continue to end to search the max, if sum< width*255 then is new max
+	//then continue to end to search the max, if sum< width*250 then is new max
 	for (i=0; i< imgSrc->height; i++){
 		cvGetRow(imgSrc, &data, i);
 		val= cvSum(&data);
@@ -303,14 +313,13 @@ IplImage* scale_image(IplImage* imgSrc, int image_size)
 	cvSetImageROI(result, cvRect(x, y, bb.width, bb.height));
 	cvCopy(imgSrc, result, NULL);
 	
-//	cvResetImageROI(result);
-
+	cvResetImageROI(imgSrc);
+	cvResetImageROI(result);
+	
 	//Scale result
 	scaledResult = cvCreateImage(cvSize(image_size, image_size), 8, 1 );
 	cvResize(result, scaledResult, CV_INTER_NN);
 
-	cvResetImageROI(imgSrc);
-	cvResetImageROI(result);
 
 	//Return scaled image data
 	return scaledResult;
@@ -342,7 +351,7 @@ char* in2post(char* equation){
 	for( i = 0; i < arraySize; i++){
 		//Determine if the element is an operator
 		if(strcmp(equationArray[i], "+") == 0 || strcmp(equationArray[i],"-")
-				== 0 || strcmp(equationArray[i], "x") == 0 || strcmp(equationArray[i], "/") == 0
+				== 0 || strcmp(equationArray[i], "x") == 0 || strcmp(equationArray[i], "%") == 0
 			  	|| strcmp(equationArray[i], "(") == 0 || strcmp(equationArray[i], ")") == 0) {
 			//Push to stack if there are no elements in the stack
 			if(topIndex == -1) {
@@ -357,16 +366,14 @@ char* in2post(char* equation){
 				while(strcmp(top(stack), "(") != 0) {
 					strcat(postfix, pop(stack));
 					strcat(postfix, " ");
-					printf("%s\n", postfix);
 				}
 				pop(stack);
 			}
 			else if(strcmp(equationArray[i], "+") == 0 || strcmp(equationArray[i], "-") == 0){
 				while(strcmp(top(stack), "+") == 0 || strcmp(top(stack), "-")
-						==0 || strcmp(top(stack), "x") == 0 || strcmp(top(stack),"/") == 0 ) {
+						==0 || strcmp(top(stack), "x") == 0 || strcmp(top(stack),"%") == 0 ) {
 					strcat(postfix, pop(stack));
 					strcat(postfix, " ");
-					printf("%s\n", postfix);
 				}
 				//Pushes most recent operator to stack
 				push(equationArray[i], stack);
@@ -374,11 +381,10 @@ char* in2post(char* equation){
 			//If it's a multiplication or division symbol, it keeps
 			//concatenating the top stack elements as longa s it has the same
 			//precendence.
-			else if(strcmp(equationArray[i], "x") == 0 || strcmp(equationArray[i], "/") == 0) {
-				while(strcmp(top(stack), "x") == 0 || strcmp(top(stack), "/") == 0 ) { 
+			else if(strcmp(equationArray[i], "x") == 0 || strcmp(equationArray[i], "%") == 0) {
+				while(strcmp(top(stack), "x") == 0 || strcmp(top(stack), "%") == 0 ) { 
 					strcat(postfix, pop(stack));
 					strcat(postfix, " ");
-					printf("%s\n", postfix);
 				}
 				//Pushes most recent operator to stack
 				push(equationArray[i], stack);
@@ -388,7 +394,6 @@ char* in2post(char* equation){
 		else {
 			strcat(postfix, equationArray[i]);
 			strcat(postfix, " ");
-			printf("%s\n", postfix);
 		}
 	}
 	//Concatenates all the remaining elements in the stack to the final
@@ -396,7 +401,6 @@ char* in2post(char* equation){
 	while(topIndex != -1) {
 		strcat(postfix, pop(stack));
 		strcat(postfix, " ");
-		printf("%s\n", postfix);
 	}
 
 	//Free memory used to hold copy
@@ -431,7 +435,7 @@ int postEval(char* postfix) {
 	for(i = 0; i < arraySize; i++) {
 		//Determine if the element is an operator
 		if(strcmp(equationArray[i], "+") == 0 || strcmp(equationArray[i], "-")
-				== 0 || strcmp(equationArray[i], "x") == 0 || strcmp(equationArray[i], "/") == 0) {
+				== 0 || strcmp(equationArray[i], "x") == 0 || strcmp(equationArray[i], "%") == 0) {
 			int first = atoi(pop(stack));		//Convert the top element of the stack to an integer
 			int second = atoi(pop(stack));	//Convert the secodn top element of the stack to an integer
 			int result;								//Initialize an int to hold the result of the two top elements
@@ -448,7 +452,7 @@ int postEval(char* postfix) {
 				result = second*first;
 			}
 			//divide the two numbers
-			else if(strcmp(equationArray[i], "/") == 0) { 
+			else if(strcmp(equationArray[i], "%") == 0) { 
 				result = second/first;
 			}
 			//Convert the result back into string 
