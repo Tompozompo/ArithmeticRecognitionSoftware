@@ -358,6 +358,8 @@ char* in2post(char* equation){
 					strcat(postfix, pop(stack));
 					strcat(postfix, " ");
 					printf("%s\n", postfix);
+					fprintf(stderr, "Error: Invalid expression\n")
+					return 0;
 				}
 				pop(stack);
 			}
