@@ -2,7 +2,7 @@
 
 int find_closest(IplImage* resized_input, int image_size)
 {
-	int K = 10;
+	int K = 5;  // the number of neightbors to find
    CvMat *nearest, //used by find_nearest
       	row_header,	// header of compressed matrix	
       	*row1; // stores the compressed matrix
