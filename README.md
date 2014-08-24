@@ -44,3 +44,6 @@ if you run the program again.
 Ideally, the image should have little to no shadows to minimize image distortion
 and the program is not 100 percent accurate. Though, if the program adheres to
 ideal conditions, more often than not, it will evaluate the expression correctly. 
+
+Special thanks to http://blog.damiles.com/2008/11/basic-ocr-in-opencv/ for his tutorial
+on number recognition.
